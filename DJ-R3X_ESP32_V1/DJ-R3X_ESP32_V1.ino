@@ -34,8 +34,8 @@
 // Include iBusBM Library
 #include <IBusBM.h>
 
-//#define DEBUG_RC_INPUT
-//#define DEBUG_DRIVE
+#define DEBUG_RC_INPUT
+#define DEBUG_DRIVE
 //#define DEBUG_STEPPER
 //#define DEBUG_SERVO
 //#define DEBUG_LED
@@ -84,7 +84,7 @@ Adafruit_NeoPixel pixels(NUMPIXELS, LEDPIN, NEO_GRB + NEO_KHZ800);
 Adafruit_PWMServoDriver pca9685 = Adafruit_PWMServoDriver(0x40);
 // Define servo motor connections (expand as required)
 #define SER0  12   //Servo Motor 0 on connector 12
-#define SER1  13   //Servo Motor 0 on connector 13
+#define SER1  13   //Servo Motor 1 on connector 13
 // Variables for Servo Motor positions (expand as required)
 int pwm0;
 int pwm1;
@@ -126,55 +126,8 @@ struct servoMotor servo[9];
 struct driveMotor motor[4];
 struct stepperMotor stepper[5];
 
-/*
-int dir1pin = 1;
-int spe1pin = 2;
-int dir2pin = 3;
-int spe2pin = 4;
-int dir3pin = 5;
-int spe3pin = 6;
-int dir4pin = 7;
-int spe4pin = 8;
-*/
-
-/*
-int dir5pin = 9;
-int step5pin = 10;
-int steps_per_rev = 800;
-*/
-
 int input[10];
 
-/*
-int motor5Min = 0;
-int motor5Max = 1000;
-
-int motor1 = 0;
-int motor2 = 0;
-int motor3 = 0;
-int motor4 = 0;
-int motor5 = 0;
-
-int motor5Should = 0;
-
-int motorSpeed1Is = 0;
-int motorSpeed2Is = 0;
-int motorSpeed3Is = 0;
-int motorSpeed4Is = 0;
-int motorSpeed5Is = 0;
-
-int motorSpeed1Should = 0;
-int motorSpeed2Should = 0;
-int motorSpeed3Should = 0;
-int motorSpeed4Should = 0;
-int motorSpeed5Should = 0;
-
-int stepperSpeedMin = 1500;
-int stepperSpeedMax = 100;
-int stepperSpeedAcc = 25;
-int stepperSpeed = 0;
-
-*/
 int speed = 5;
 
 
@@ -295,10 +248,15 @@ void loop() {
         }else{
           mouthRedIs[i] -= 1;
         }
-        //Serial.print("Red ist: ");
-        //Serial.print(mouthRedIs[i]);
-        //Serial.print("   Blue ist: ");
-        //Serial.println(mouthBlueIs[i]);
+
+        #ifdef DEBUG_LED
+          for(int i = 0; i < 10; i++){
+            Serial.print("Red is: ");
+            Serial.print(mouthRedIs[i]);
+            Serial.print("   Blue is: ");
+            Serial.println(mouthBlueIs[i]);
+          }
+        #endif
 
         //---------------------------------------------------------------------------------------------------------------------------
         pixels.setPixelColor(i + mouthOffset, pixels.Color(mouthRedIs[i], 0, mouthBlueIs[i]));
@@ -378,7 +336,8 @@ void loop() {
 
   /*
 
-
+  Ch 6: -100 -> Light off     100 -> Light on
+  Ch 7:
   Ch 8: -100 -> Arm3   0 -> Arm 2   100 -> Arm 1
   Ch 9: -100 Fahren linker stick    100 Arme Bewegen
 
@@ -417,7 +376,7 @@ void loop() {
     Serial.println("");
   #endif
 
-  delay(1);
+  delay(10);
   //delayMicroseconds(800);
 }
 
@@ -682,21 +641,21 @@ void drive(){
 
   #ifdef DEBUG_DRIVE
   Serial.print("Motor1: ");
-  Serial.print(motor1);
+  Serial.print(motor[1].speedIs);
   Serial.print("  Motor2: ");
-  Serial.print(motor2);
+  Serial.print(motor[2].speedIs);
   Serial.print("  Motor3: ");
-  Serial.print(motor3);
+  Serial.print(motor[3].speedIs);
   Serial.print("  Motor4: ");
-  Serial.print(motor4);
+  Serial.print(motor[4].speedIs);
   Serial.print("  Speed1: ");
-  Serial.print(motorSpeed1Is);
+  Serial.print(motor[1].value);
   Serial.print("  Speed2: ");
-  Serial.print(motorSpeed2Is);
+  Serial.print(motor[2].value);
   Serial.print("  Speed3: ");
-  Serial.print(motorSpeed3Is);
+  Serial.print(motor[3].value);
   Serial.print("  Speed4: ");
-  Serial.print(motorSpeed4Is);
+  Serial.print(motor[4].value);
   #endif
 }
 
