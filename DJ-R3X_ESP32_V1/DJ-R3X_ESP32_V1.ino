@@ -337,7 +337,13 @@ void loop() {
   /*
 
   Ch 6: -100 -> Light off     100 -> Light on
-  Ch 7:
+  Ch 7: -100 -> Head Yaw/drehen   100 -> Head Roll/Pitch
+  Ch 8: -100 -> Arm3   0 -> Arm 2   100 -> Arm 1
+  Ch 9: -100 Fahren linker stick    100 Arme Bewegen
+
+  Ch 6: -100 -> Light off     100 -> Light on
+  Ch 7: -100 -> Head   100 -> Arme
+  Ch 8: -100 -> Head Yaw/drehen   0 -> Head Roll/Pitch   100 -> Head Shield  
   Ch 8: -100 -> Arm3   0 -> Arm 2   100 -> Arm 1
   Ch 9: -100 Fahren linker stick    100 Arme Bewegen
 
@@ -347,27 +353,41 @@ void loop() {
   //calculate Drive Speed and Direction
   drive();
 
-  //Arm auswahl
-  if(input[9] == 100){
-    if(input[8] == -100){
-      stepperCalc(0);
-      servoCalc(0);
-    }else if(input[8] == 0){
-      stepperCalc(1);
-      servoCalc(1);
-    }else{
-      stepperCalc(2);
+  if(input[7] == -100){
+
+    //Arm auswahl
+    if(input[9] == 100){
+      if(input[8] == -100){
+        //Arm 1
+        stepperCalc(0, input[2]);
+        servoCalc(0, input[3]);
+        servoCalc(1, input[5]);
+      }else if(input[8] == 0){
+        //Arm 2
+        stepperCalc(1, input[2]);
+        servoCalc(2, input[3]);
+        servoCalc(3, input[5]);
+      }else{
+        //Arm 3
+        stepperCalc(2,input[2]);
+        servoCalc(4,input[3]);
+        servoCalc(5, input[5]);
+      }
     }
-  }
-  
-  //Head Movement
-  if(input[9] == -100){
-    if(input[8] == 0){
-      stepperCalc(3);
-      servoCalc(0);
-    }else if(input[8] == 100){
-      stepperCalc(4);
-      servoCalc(1);
+
+  }else{
+
+    //Head Movement
+    if(input[9] == 100){
+      if(input[8] == -100){
+        stepperCalc(3,input[2]);
+        stepperCalc(4,input[3]);
+      }else if(input[8] == 0){
+        servoCalc(6,input[2]);
+        servoCalc(7,input[3]);
+      }else{
+        servoCalc(8,input[3]);
+      }
     }
   }
 
@@ -376,25 +396,25 @@ void loop() {
     Serial.println("");
   #endif
 
-  delay(10);
+  delay(5);
   //delayMicroseconds(800);
 }
 
 
-void servoCalc(int number){
+void servoCalc(int number, int value){
 
   float temp;
   int pwm;
 
-  if(input[3] > 1){
-    temp = mapF(input[3], 0, 100, 0, servo[number].velocidad);
+  if(value > 1){
+    temp = mapF(value, 0, 100, 0, servo[number].velocidad);
     if(servo[number].pos + temp <= servo[number].max){
       servo[number].pos += temp;
     }else{
       servo[number].pos = servo[number].max;
     }
   }else{
-    temp = mapF(input[3], -100, 0, servo[number].velocidad, 0);
+    temp = mapF(value, -100, 0, servo[number].velocidad, 0);
     if(servo[number].pos - temp >= servo[number].min){
       servo[number].pos -= temp;
     }else{
@@ -422,12 +442,12 @@ float mapF(float x, float in_min, float in_max, float out_min, float out_max){
 }
 
 
-void stepperCalc(int number){
+void stepperCalc(int number, int value){
   //number is the number of the Stepper(0-4)
   int i = number;
 
-  if(input[2] > 1){
-    stepper[i].speed = map (input[2],0,100,stepper[i].speedMin,stepper[i].speedMax);
+  if(value > 1){
+    stepper[i].speed = map (value,0,100,stepper[i].speedMin,stepper[i].speedMax);
     if(stepper[i].pos + 1 < stepper[i].posMax){
       digitalWrite(stepper[i].dirPin, HIGH);
 
@@ -441,8 +461,8 @@ void stepperCalc(int number){
       digitalWrite(stepper[i].stepPin, LOW);
 
     }
-  }else if(input[2] < -1){
-    stepper[i].speed = map (input[2],-100,0,stepper[i].speedMax,stepper[i].speedMin);
+  }else if(ivalue < -1){
+    stepper[i].speed = map (value,-100,0,stepper[i].speedMax,stepper[i].speedMin);
     if(stepper[i].pos - 1 > stepper[i].posMin){
       digitalWrite(stepper[i].dirPin, LOW);
 
