@@ -555,17 +555,17 @@ void drive(){
 
   if(input[9] == -100){
     //Drive with left und right stick
-    motor[1].value = (input[1] + input[0] + input[3]);
-    motor[2].value = (input[1] - input[0] - input[3]);
-    motor[3].value = (input[1] + input[0] - input[3]);
-    motor[4].value = (input[1] - input[0] + input[3]);
+    motor[0].value = (input[1] + input[0] + input[3]);
+    motor[1].value = (input[1] - input[0] - input[3]);
+    motor[2].value = (input[1] + input[0] - input[3]);
+    motor[3].value = (input[1] - input[0] + input[3]);
     maxSpe += 100;
   }else{
     //Drive only with right stick
-    motor[1].value = (input[1] + input[0]);
-    motor[2].value = (input[1] - input[0]);
-    motor[3].value = (input[1] + input[0]);
-    motor[4].value = (input[1] - input[0]);
+    motor[0].value = (input[1] + input[0]);
+    motor[1].value = (input[1] - input[0]);
+    motor[2].value = (input[1] + input[0]);
+    motor[3].value = (input[1] - input[0]);
   }
 
   for(int i = 0; i <  4; i++){
