@@ -34,9 +34,8 @@
 // Include iBusBM Library
 #include <IBusBM.h>
 
-#define DEBUG_RC_INPUT
-#define DEBUG_DRIVE
-//#define DEBUG_STEPPER
+//#define DEBUG_RC_INPUT
+//#define DEBUG_DRIVE
 //#define DEBUG_SERVO
 //#define DEBUG_LED
  
@@ -122,9 +121,9 @@ struct stepperMotor{
   int posMax;
 };
 
-struct servoMotor servo[9];
+struct servoMotor servo[14];
 struct driveMotor motor[4];
-struct stepperMotor stepper[5];
+//struct stepperMotor stepper[5];
 
 int input[10];
 
@@ -194,13 +193,93 @@ void setup() {
 
 }
 
+//---LOOP----------------------------------------------------------------------------------------------------
 void loop() {
+
+  
+  // Note IBusBM library labels channels starting with "0"
+  for (byte i = 0; i < 10; i++) {
+    input[i] = readChannel(i, -100, 100, 0);
+  }
+
+  #ifdef DEBUG_RC_INPUT
+    for(int i = 0; i < 10; i++){
+      Serial.print("   Ch ");
+      Serial.print(i);
+      Serial.print(": ");
+      Serial.print(input[i]);
+    }
+  #endif
 
 
   currentMotorTime = micros(); 
   //Serial.println(currentMotorTime - earLastTime);
+
+//LED Body
+  if(currentMotorTime - bodyLastTime >= bodyTime){
+    if(input[6] == 100){  //body
+      //links Rund
+      pixels.setPixelColor(0, pixels.Color(128, 128, 128));
+      pixels.setPixelColor(1, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(2, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(3, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(4, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(5, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(6, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(7, pixels.Color(0, 0, 0));
+    	//links Ecking
+      pixels.setPixelColor(8, pixels.Color(0, 0, 128));
+      pixels.setPixelColor(9, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(10, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(11, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(12, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(13, pixels.Color(0, 0, 0));
+
+      //mitte Rund
+      pixels.setPixelColor(14, pixels.Color(128, 128, 128));
+      pixels.setPixelColor(15, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(16, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(17, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(18, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(19, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(20, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(21, pixels.Color(0, 0, 0));
+    	//mitte Ecking
+      pixels.setPixelColor(22, pixels.Color(0, 0, 128));
+      pixels.setPixelColor(23, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(24, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(25, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(26, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(27, pixels.Color(0, 0, 0));
+
+      //rechts Rund
+      pixels.setPixelColor(28, pixels.Color(128, 128, 128));
+      pixels.setPixelColor(29, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(30, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(31, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(32, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(33, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(34, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(35, pixels.Color(0, 0, 0));
+    	//rechts Ecking
+      pixels.setPixelColor(36, pixels.Color(0, 0, 128));
+      pixels.setPixelColor(37, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(38, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(39, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(40, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(41, pixels.Color(0, 0, 0));
+
+    }else{
+      for(int i = 0; i < 42; i++) { // For each pixel...
+        pixels.setPixelColor(i + bodyOffset, pixels.Color(0, 0, 0));
+      }
+    }
+    bodyLastTime = currentMotorTime;
+  }
+
+//LED Ear
   if(currentMotorTime - earLastTime >= earTime){
-    if(ear){
+    if(input[6] == 100){  //ear
       for (int i = 0; i < 40; i++){
         pixels.setPixelColor(((i + earPos1) % 40) + ear1offset, getPixelColorHsv(i + ear1offset, (i * (MAXHUE / 40)) + ear1offset, 255, 10));
       }
@@ -219,7 +298,8 @@ void loop() {
     }
   }
 
-  if(eye){
+//LED Eye
+  if(input[6] == 100){  //eye
     pixels.setPixelColor(eye1offset, pixels.Color(255,215,0));
     pixels.setPixelColor(eye2offset, pixels.Color(255,215,0));
   }else{
@@ -227,8 +307,9 @@ void loop() {
     pixels.setPixelColor(eye2offset, pixels.Color(0,0,0));
   }
 
+//LED Mouth
   if(currentMotorTime - mouthLastTime >= mouthTime){
-    if(mouth){
+    if(input[6] == 100){  //mouth
       for(int i = 0; i < 80; i++) { // For each pixel...
         if(mouthBlueIs[i] == mouthBlueShould[i]){
           int tmp = random(0, 255);
@@ -283,17 +364,6 @@ void loop() {
     Serial.println(posDegrees);
     delay(30);
   }
-  for (int posDegrees = 0; posDegrees <= 180; posDegrees++) {
- 
-    // Determine PWM pulse width
-    pwm1 = map(posDegrees, 0, 180, 80, 600);
-    // Write to PCA9685
-    pca9685.setPWM(SER1, 0, pwm1);
-    // Print to serial monitor
-    Serial.print("Motor 1 = ");
-    Serial.println(posDegrees);
-    delay(30);
-  }
   // Move Motor 0 from 180 to 0 degrees
   for (int posDegrees = 180; posDegrees >= 0; posDegrees--) {
  
@@ -306,46 +376,15 @@ void loop() {
     Serial.println(posDegrees);
     delay(30);
   }
-  // Move Motor 0 from 180 to 0 degrees
-  for (int posDegrees = 180; posDegrees >= 0; posDegrees--) {
- 
-    // Determine PWM pulse width
-    pwm1 = map(posDegrees, 0, 180, 80, 600);
-    // Write to PCA9685
-    pca9685.setPWM(SER1, 0, pwm1);
-    // Print to serial monitor
-    Serial.print("Motor 1 = ");
-    Serial.println(posDegrees);
-    delay(30);
-  }
 */
-
-  // Note IBusBM library labels channels starting with "0"
-  for (byte i = 0; i < 10; i++) {
-    input[i] = readChannel(i, -100, 100, 0);
-  }
-
-  #ifdef DEBUG_RC_INPUT
-    for(int i = 0; i < 10; i++){
-      Serial.print("   Ch ");
-      Serial.print(i);
-      Serial.print(": ");
-      Serial.print(input[i]);
-    }
-  #endif
 
   /*
 
   Ch 6: -100 -> Light off     100 -> Light on
-  Ch 7: -100 -> Head Yaw/drehen   100 -> Head Roll/Pitch
-  Ch 8: -100 -> Arm3   0 -> Arm 2   100 -> Arm 1
-  Ch 9: -100 Fahren linker stick    100 Arme Bewegen
-
-  Ch 6: -100 -> Light off     100 -> Light on
-  Ch 7: -100 -> Head   100 -> Arme
+  Ch 7: -100 -> Arme   100 -> Head
   Ch 8: -100 -> Head Yaw/drehen   0 -> Head Roll/Pitch   100 -> Head Shield  
   Ch 8: -100 -> Arm3   0 -> Arm 2   100 -> Arm 1
-  Ch 9: -100 Fahren linker stick    100 Arme Bewegen
+  Ch 9: -100 Fahren linker stick    100 Arme Bewegen/Kopf Bewegen
 
   */
 
@@ -353,40 +392,40 @@ void loop() {
   //calculate Drive Speed and Direction
   drive();
 
-  if(input[7] == -100){
+  if(input[9] == 100){
+
+    //Arme
+    if(input[7] == -100){
 
     //Arm auswahl
-    if(input[9] == 100){
       if(input[8] == -100){
         //Arm 1
-        stepperCalc(0, input[2]);
-        servoCalc(0, input[3]);
-        servoCalc(1, input[5]);
+        servoCalcEndless(0, input[3]);
+        servoCalc(1, input[2]);
+        servoCalc(2, input[5]);
       }else if(input[8] == 0){
         //Arm 2
-        stepperCalc(1, input[2]);
-        servoCalc(2, input[3]);
-        servoCalc(3, input[5]);
+        servoCalcEndless(3, input[3]);
+        servoCalc(4, input[2]);
+        servoCalc(5, input[5]);
       }else{
         //Arm 3
-        stepperCalc(2,input[2]);
-        servoCalc(4,input[3]);
-        servoCalc(5, input[5]);
+        servoCalcEndless(6, input[3]);
+        servoCalc(7, input[2]);
+        servoCalc(8, input[5]);
       }
-    }
+    
+    }else{
 
-  }else{
-
-    //Head Movement
-    if(input[9] == 100){
+    //Head 
       if(input[8] == -100){
-        stepperCalc(3,input[2]);
-        stepperCalc(4,input[3]);
+        servoCalc(9, input[3]);
+        servoCalc(10, input[2]);
       }else if(input[8] == 0){
-        servoCalc(6,input[2]);
-        servoCalc(7,input[3]);
+        servoCalc(11,input[2]);
+        servoCalc(12,input[3]);
       }else{
-        servoCalc(8,input[3]);
+        servoCalc(13,input[2]);
       }
     }
   }
@@ -396,8 +435,23 @@ void loop() {
     Serial.println("");
   #endif
 
-  delay(5);
-  //delayMicroseconds(800);
+  delay(10);
+}
+
+
+void servoCalcEndless(int number, int value){
+  int pwm;
+
+  pwm = mapF(value, -100, 100, 80, 500);
+
+  // Write to PCA9685
+  pca9685.setPWM(servo[number].pin, 0, pwm);
+  
+  Serial.print("  Servo Endless: ");
+  Serial.print(value);
+  Serial.print("  PWM: ");
+  Serial.print(pwm);
+  
 }
 
 
@@ -406,6 +460,13 @@ void servoCalc(int number, int value){
   float temp;
   int pwm;
 
+  if(servo[number].reverse == 0){
+    servo[number].pos = map(value, -100, 100, servo[number].min, servo[number].max);
+  }else{
+    servo[number].pos = map(value, -100, 100, servo[number].max, servo[number].min);
+  }
+
+/*
   if(value > 1){
     temp = mapF(value, 0, 100, 0, servo[number].velocidad);
     if(servo[number].pos + temp <= servo[number].max){
@@ -421,9 +482,9 @@ void servoCalc(int number, int value){
       servo[number].pos = servo[number].min;
     }
   }
-
+*/
   // Determine PWM pulse width
-  pwm = map(servo[number].pos, servo[number].min, servo[number].max, 80, 600);  
+  pwm = map(servo[number].pos, 0, 180, 80, 500);  
   // Write to PCA9685
   pca9685.setPWM(servo[number].pin, 0, pwm);
 
@@ -439,113 +500,6 @@ void servoCalc(int number, int value){
 //Custom MAP function for float values
 float mapF(float x, float in_min, float in_max, float out_min, float out_max){
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-
-void stepperCalc(int number, int value){
-  //number is the number of the Stepper(0-4)
-  int i = number;
-
-  if(value > 1){
-    stepper[i].speed = map (value,0,100,stepper[i].speedMin,stepper[i].speedMax);
-    if(stepper[i].pos + 1 < stepper[i].posMax){
-      digitalWrite(stepper[i].dirPin, HIGH);
-
-      currentMotorTime = micros(); 
-      if (currentMotorTime - stepper[i].previousMotorTime > stepper[i].speed){
-        digitalWrite(stepper[i].stepPin, HIGH);
-        stepper[i].previousMotorTime = currentMotorTime;
-        stepper[i].pos++;
-      }  
-
-      digitalWrite(stepper[i].stepPin, LOW);
-
-    }
-  }else if(ivalue < -1){
-    stepper[i].speed = map (value,-100,0,stepper[i].speedMax,stepper[i].speedMin);
-    if(stepper[i].pos - 1 > stepper[i].posMin){
-      digitalWrite(stepper[i].dirPin, LOW);
-
-      currentMotorTime = micros(); 
-      if (currentMotorTime - stepper[i].previousMotorTime > stepper[i].speed){
-        digitalWrite(stepper[i].stepPin, HIGH);
-        stepper[i].previousMotorTime = currentMotorTime;
-        stepper[i].pos--;
-      }  
-
-      digitalWrite(stepper[i].stepPin, LOW);
-
-    }
-  }
-  
-/*
-  stepper[0].posShould = map (input[2],-100,100,stepper[0].posMin,stepper[0].posMax);
-
-  if(stepper[0].posShould != stepper[0].pos){
-    if(stepper[0].posShould > stepper[0].pos){
-      
-      int temp = stepper[0].posShould - stepper[0].pos;
-      if(temp > stepper[0].speed){
-        if(stepper[0].speed < ((stepper[0].speedMin - stepper[0].speedMax) / stepper[0].speedAcc)){   // ((stepper[0].speedMin - stepper[0].speedMax) / stepper[0].speedAcc)
-          stepper[0].speed++;
-        }
-      }else{
-        if(stepper[0].speed > 0){
-          stepper[0].speed--;
-        }
-      }
-      
-      int duration = stepper[0].speedMin - (stepper[0].speed * stepper[0].speedAcc);
-
-      digitalWrite(dir5pin, HIGH);
-
-      currentMotorTime = micros(); 
-      if (currentMotorTime - previousMotorTime > duration){
-        digitalWrite(step5pin, HIGH);
-        previousMotorTime = currentMotorTime;
-        stepper[0].pos++;
-      }  
-      digitalWrite(step5pin, LOW);
-
-      
-    }else{
-
-      int temp = stepper[0].pos - stepper[0].posShould;
-      if(temp > stepper[0].speed){
-        if(stepper[0].speed < ((stepper[0].speedMin - stepper[0].speedMax) / stepper[0].speedAcc)){
-          stepper[0].speed++;
-        }
-      }else{
-        if(stepper[0].speed > 0){
-          stepper[0].speed--;
-        }
-      }
-      
-      int duration = stepper[0].speedMin - stepper[0].speed * stepper[0].speedAcc;
-
-      digitalWrite(dir5pin, LOW);
-
-      currentMotorTime = micros(); 
-      if (currentMotorTime - previousMotorTime > duration){
-        digitalWrite(step5pin, HIGH);
-        previousMotorTime = currentMotorTime;
-        stepper[0].pos--;
-      }  
-      digitalWrite(step5pin, LOW);
-
-    }
-  }
-*/
-
-  #ifdef DEBUG_STEPPER
-    Serial.print("  Input Ch3: ");
-    Serial.print(input[2]);
-    Serial.print("  stepperSpeed: ");
-    Serial.print(stepper[0].speed);
-    Serial.print("  stepperPos: ");
-    Serial.print(stepper[0].pos);
-  #endif
-
 }
 
 
@@ -657,25 +611,26 @@ void drive(){
     digitalWrite(dir4pin, HIGH);
     analogWrite(spe4pin,motorSpeed4Is); //increase the speed of the motor from 0 to 255
   }
-  */
+*/
+
 
   #ifdef DEBUG_DRIVE
-  Serial.print("Motor1: ");
-  Serial.print(motor[1].speedIs);
-  Serial.print("  Motor2: ");
-  Serial.print(motor[2].speedIs);
-  Serial.print("  Motor3: ");
-  Serial.print(motor[3].speedIs);
-  Serial.print("  Motor4: ");
-  Serial.print(motor[4].speedIs);
-  Serial.print("  Speed1: ");
-  Serial.print(motor[1].value);
-  Serial.print("  Speed2: ");
-  Serial.print(motor[2].value);
-  Serial.print("  Speed3: ");
-  Serial.print(motor[3].value);
-  Serial.print("  Speed4: ");
-  Serial.print(motor[4].value);
+    Serial.print("Motor1: ");
+    Serial.print(motor[1].speedIs);
+    Serial.print("  Motor2: ");
+    Serial.print(motor[2].speedIs);
+    Serial.print("  Motor3: ");
+    Serial.print(motor[3].speedIs);
+    Serial.print("  Motor4: ");
+    Serial.print(motor[4].speedIs);
+    Serial.print("  Speed1: ");
+    Serial.print(motor[1].value);
+    Serial.print("  Speed2: ");
+    Serial.print(motor[2].value);
+    Serial.print("  Speed3: ");
+    Serial.print(motor[3].value);
+    Serial.print("  Speed4: ");
+    Serial.print(motor[4].value);
   #endif
 }
 
