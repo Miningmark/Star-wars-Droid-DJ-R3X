@@ -48,11 +48,11 @@ bool mouth = true;
 bool body = true;
 
 int bodyOffset = 0;
-int ear1offset = 42;
-int ear2offset = 82;
-int eye1offset = 122;
-int eye2offset = 123;
-int mouthOffset = 124;
+int ear1offset = 0;
+int ear2offset = 40;
+int eye1offset = 80;
+int eye2offset = 81;
+int mouthOffset = 82;
 
 long bodyTime = 50000;
 long bodyLastTime = micros();
@@ -61,8 +61,10 @@ long earLastTime = micros();
 long mouthTime = 5000;
 long mouthLastTime = micros();
 
-#define NUMPIXELS 204
-#define LEDPIN 41
+#define NUMPIXELS_BODY 42
+#define NUMPIXELS_HEAD 162
+#define LED_PIN_BODY 41
+#define LED_PIN_HEAD 40
 int earPos1 = 0;
 int earPos2 = 0;
 // max Hue
@@ -71,7 +73,8 @@ short mouthBlueIs[80];
 short mouthRedIs[80];
 short mouthBlueShould[80];
 short mouthRedShould[80];
-Adafruit_NeoPixel pixels(NUMPIXELS, LEDPIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixels_body(NUMPIXELS_BODY, LED_PIN_BODY, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixels_head(NUMPIXELS_HEAD, LED_PIN_HEAD, NEO_GRB + NEO_KHZ800);
 
 #define RXD2 48
 #define TXD2 47
@@ -107,23 +110,8 @@ struct driveMotor{
   int speedShould;
 };
 
-struct stepperMotor{
-  int dirPin;
-  int stepPin;
-  int stepsPerRound;
-  long previousMotorTime;
-  int speed;
-  int speedMin;
-  int speedMax;
-  int speedAcc;
-  int pos;
-  int posMin;
-  int posMax;
-};
-
 struct servoMotor servo[14];
 struct driveMotor motor[4];
-//struct stepperMotor stepper[5];
 
 int input[10];
 
@@ -131,7 +119,7 @@ int speed = 5;
 
 
 //Set up time variables for Stepper motor
-long currentMotorTime =  micros();
+unsigned long currentMotorTime =  micros();
 
 
  
@@ -171,23 +159,39 @@ void setup() {
 
   //Setup LEDs
   delay(1000);
-  pixels.begin();
-  pixels.fill(pixels.Color(0, 0, 0),0,999);
-  pixels.show();
-  pixels.clear();
-  pixels.show();
+  pixels_body.begin();
+  pixels_body.fill(pixels_body.Color(0, 0, 0),0,999);
+  pixels_body.show();
+  pixels_body.clear();
+  pixels_body.show();
 
-  for(int i=0; i<NUMPIXELS; i++) { // For each pixel...
-    pixels.setPixelColor(i, 255, 255, 255);
-    pixels.show(); 
+  pixels_head.begin();
+  pixels_head.fill(pixels_head.Color(0, 0, 0),0,999);
+  pixels_head.show();
+  pixels_head.clear();
+  pixels_head.show();
+
+  for(int i=0; i<NUMPIXELS_BODY; i++) { // For each pixel...
+    pixels_body.setPixelColor(i, 255, 255, 255);
+    pixels_body.show(); 
+    delay(20);
+  }
+  for(int i=0; i<NUMPIXELS_HEAD; i++) { // For each pixel...
+    pixels_head.setPixelColor(i, 255, 255, 255);
+    pixels_head.show(); 
     delay(20);
   }
 
   delay(1000);
 
-  for(int i=0; i<NUMPIXELS; i++) { // For each pixel...
-    pixels.setPixelColor(i, pixels.Color(0, 0, 0));
-    pixels.show();
+  for(int i=0; i<NUMPIXELS_BODY; i++) { // For each pixel...
+    pixels_body.setPixelColor(i, 0, 0, 0);
+    pixels_body.show();
+    delay(20);
+  }
+  for(int i=0; i<NUMPIXELS_HEAD; i++) { // For each pixel...
+    pixels_head.setPixelColor(i, 0, 0, 0);
+    pixels_head.show();
     delay(20);
   }
 
@@ -217,74 +221,83 @@ void loop() {
 
 //LED Body
   if(currentMotorTime - bodyLastTime >= bodyTime){
-    if(input[6] == 100){  //body
-      //links Rund
-      pixels.setPixelColor(0, pixels.Color(128, 128, 128));
-      pixels.setPixelColor(1, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(2, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(3, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(4, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(5, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(6, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(7, pixels.Color(0, 0, 0));
-    	//links Ecking
-      pixels.setPixelColor(8, pixels.Color(0, 0, 128));
-      pixels.setPixelColor(9, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(10, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(11, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(12, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(13, pixels.Color(0, 0, 0));
+    if(input[6] == 0){  //body    input[6] == 100
+    Serial.print("LEDtime: ");
+    Serial.println(currentMotorTime);
 
-      //mitte Rund
-      pixels.setPixelColor(14, pixels.Color(128, 128, 128));
-      pixels.setPixelColor(15, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(16, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(17, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(18, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(19, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(20, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(21, pixels.Color(0, 0, 0));
-    	//mitte Ecking
-      pixels.setPixelColor(22, pixels.Color(0, 0, 128));
-      pixels.setPixelColor(23, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(24, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(25, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(26, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(27, pixels.Color(0, 0, 0));
+    //links Rund
+    pixels_body.setPixelColor(0, 128, 128, 128);
+    pixels_body.setPixelColor(1, 255, 0, 0);
+    pixels_body.setPixelColor(2, 0, 255, 0);
+    pixels_body.setPixelColor(3, 0, 0, 255);
+    pixels_body.setPixelColor(4, 255, 255, 255);
+    pixels_body.setPixelColor(5, 0, 0, 0);
+    pixels_body.setPixelColor(6, 0, 0, 0);
+    pixels_body.setPixelColor(7, 0, 0, 128);
 
-      //rechts Rund
-      pixels.setPixelColor(28, pixels.Color(128, 128, 128));
-      pixels.setPixelColor(29, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(30, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(31, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(32, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(33, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(34, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(35, pixels.Color(0, 0, 0));
-    	//rechts Ecking
-      pixels.setPixelColor(36, pixels.Color(0, 0, 128));
-      pixels.setPixelColor(37, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(38, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(39, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(40, pixels.Color(0, 0, 0));
-      pixels.setPixelColor(41, pixels.Color(0, 0, 0));
+    //links Ecking
+    pixels_body.setPixelColor(8, 0, 0, 128);
+    //pixels_body.setPixelColor(9, 0, 0, 0);
+    pixels_body.setPixelColor(10, 0, 128, 0);
+    pixels_body.setPixelColor(11, 128, 0, 0);
+    //pixels_body.setPixelColor(12, 0, 0, 0);
+    //pixels_body.setPixelColor(13, 0, 0, 0);
+
+    //mitte Rund
+    pixels_body.setPixelColor(14, 128, 128, 128);
+    pixels_body.setPixelColor(15, 0, 0, 0);
+    pixels_body.setPixelColor(16, 0, 0, 0);
+    pixels_body.setPixelColor(17, 0, 0, 0);
+    pixels_body.setPixelColor(18, 0, 0, 0);
+    pixels_body.setPixelColor(19, 0, 0, 0);
+    pixels_body.setPixelColor(20, 0, 0, 0);
+    pixels_body.setPixelColor(21, 0, 0, 0);
+
+    //mitte Ecking
+    pixels_body.setPixelColor(22, 0, 0, 128);
+    //pixels_body.setPixelColor(23, 0, 0, 0);
+    //pixels_body.setPixelColor(24, 0, 0, 0);
+    //pixels_body.setPixelColor(25, 0, 0, 0);
+    pixels_body.setPixelColor(26, 0, 128, 0);
+    pixels_body.setPixelColor(27, 128, 0, 0);
+
+    //rechts Rund
+    pixels_body.setPixelColor(28, 128, 128, 128);
+    pixels_body.setPixelColor(29, 0, 0, 0);
+    pixels_body.setPixelColor(30, 0, 0, 0);
+    pixels_body.setPixelColor(31, 0, 0, 0);
+    pixels_body.setPixelColor(32, 0, 0, 0);
+    pixels_body.setPixelColor(33, 0, 0, 0);
+    pixels_body.setPixelColor(34, 0, 0, 0);
+    pixels_body.setPixelColor(35, 0, 0, 0);
+
+    //rechts Ecking
+    //pixels_body.setPixelColor(36, 0, 0, 0);
+    pixels_body.setPixelColor(37, 0, 0, 128);
+    pixels_body.setPixelColor(38, 0, 128, 0);
+    pixels_body.setPixelColor(39, 128, 0, 0);
+    //pixels_body.setPixelColor(40, 0, 0, 0);
+    //pixels_body.setPixelColor(41, 0, 0, 0);
+
+    pixels_body.show();
 
     }else{
       for(int i = 0; i < 42; i++) { // For each pixel...
-        pixels.setPixelColor(i + bodyOffset, pixels.Color(0, 0, 0));
+        pixels_body.setPixelColor(i + bodyOffset, 0, 0, 0);
       }
+      pixels_body.show();
     }
     bodyLastTime = currentMotorTime;
   }
 
 //LED Ear
   if(currentMotorTime - earLastTime >= earTime){
-    if(input[6] == 100){  //ear
+    if(input[6] == 0){  //ear
       for (int i = 0; i < 40; i++){
-        pixels.setPixelColor(((i + earPos1) % 40) + ear1offset, getPixelColorHsv(i + ear1offset, (i * (MAXHUE / 40)) + ear1offset, 255, 10));
+        pixels_head.setPixelColor(((i + earPos1) % 40) + ear1offset, getPixelColorHsv(i + ear1offset, (i * (MAXHUE / 40)) + ear1offset, 255, 10));
       }
       for (int i = 0; i < 40; i++){
-        pixels.setPixelColor(((i + earPos2) % 40) + ear2offset, getPixelColorHsv(i + ear2offset, (i * (MAXHUE / 40)) + ear2offset, 255, 10));
+        pixels_head.setPixelColor(((i + earPos2) % 40) + ear2offset, getPixelColorHsv(i + ear2offset, (i * (MAXHUE / 40)) + ear2offset, 255, 10));
       }
       earPos1++;
       earPos2++;
@@ -293,24 +306,24 @@ void loop() {
       earLastTime = currentMotorTime;
     }else{
       for(int i = 0; i < 80; i++) { // For each pixel...
-        pixels.setPixelColor(i + ear1offset, pixels.Color(0, 0, 0));
+        pixels_head.setPixelColor(i + ear1offset, 0, 0, 0);
       }
     }
   }
 
 //LED Eye
-  if(input[6] == 100){  //eye
-    pixels.setPixelColor(eye1offset, pixels.Color(255,215,0));
-    pixels.setPixelColor(eye2offset, pixels.Color(255,215,0));
+  if(input[6] == 0){  //eye
+    pixels_head.setPixelColor(eye1offset, 255,215,0);
+    pixels_head.setPixelColor(eye2offset, 255,215,0);
   }else{
-    pixels.setPixelColor(eye1offset, pixels.Color(0,0,0));
-    pixels.setPixelColor(eye2offset, pixels.Color(0,0,0));
+    pixels_head.setPixelColor(eye1offset, 0,0,0);
+    pixels_head.setPixelColor(eye2offset, 0,0,0);
   }
 
 //LED Mouth
   if(currentMotorTime - mouthLastTime >= mouthTime){
-    if(input[6] == 100){  //mouth
-      for(int i = 0; i < 80; i++) { // For each pixel...
+    if(input[6] == 0){  //mouth
+      for(int i = 0; i < 80; i += 2) { // For each pixel...
         if(mouthBlueIs[i] == mouthBlueShould[i]){
           int tmp = random(0, 255);
           mouthBlueShould[i] = tmp;
@@ -340,16 +353,16 @@ void loop() {
         #endif
 
         //---------------------------------------------------------------------------------------------------------------------------
-        pixels.setPixelColor(i + mouthOffset, pixels.Color(mouthRedIs[i], 0, mouthBlueIs[i]));
+        pixels_head.setPixelColor(i + mouthOffset, pixels_head.Color(mouthRedIs[i], 0, mouthBlueIs[i]));
       }
     }else{
       for(int i = 0; i < 80; i++) { // For each pixel...
-        pixels.setPixelColor(i + mouthOffset, pixels.Color(0, 0, 0));
+        pixels_head.setPixelColor(i + mouthOffset, pixels_head.Color(0, 0, 0));
       }
     }
     mouthLastTime = currentMotorTime;
   }
-  pixels.show();
+  pixels_head.show();
 
 
 /*
@@ -447,11 +460,13 @@ void servoCalcEndless(int number, int value){
   // Write to PCA9685
   pca9685.setPWM(servo[number].pin, 0, pwm);
   
+  #ifdef DEBUG_SERVO
   Serial.print("  Servo Endless: ");
   Serial.print(value);
   Serial.print("  PWM: ");
   Serial.print(pwm);
-  
+  #endif
+
 }
 
 
@@ -633,12 +648,4 @@ void drive(){
     Serial.print(motor[4].value);
   #endif
 }
-
-
-
-
-
-
-
-
 
