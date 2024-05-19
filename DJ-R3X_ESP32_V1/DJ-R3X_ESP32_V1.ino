@@ -31,21 +31,22 @@
 
 #include <Adafruit_PWMServoDriver.h>
 
+#include <ESP32Servo.h>
+
 // Include iBusBM Library
 #include <IBusBM.h>
 
-//#define DEBUG_RC_INPUT
+#define DEBUG_RC_INPUT
 //#define DEBUG_DRIVE
 //#define DEBUG_SERVO
 //#define DEBUG_LED
+
+TaskHandle_t Core0TaskHnd;
+TaskHandle_t Core1TaskHnd;
+bool booting = true;
  
 // Create iBus Object
 IBusBM IBUS;
-
-bool ear = true;
-bool eye = true;
-bool mouth = true;
-bool body = true;
 
 int bodyOffset = 0;
 int ear1offset = 0;
@@ -54,12 +55,15 @@ int eye1offset = 80;
 int eye2offset = 81;
 int mouthOffset = 82;
 
-long bodyTime = 50000;
-long bodyLastTime = micros();
-long earTime = 50000;
-long earLastTime = micros();
-long mouthTime = 5000;
-long mouthLastTime = micros();
+//Set up time variables for Stepper motor
+//unsigned long currentMotorTime =  millis();
+
+long bodyTime = 5;
+unsigned long bodyLastTime = millis();
+long earTime = 5;
+unsigned long earLastTime = millis();
+long mouthTime = 5;
+unsigned long mouthLastTime = millis();
 
 #define NUMPIXELS_BODY 42
 #define NUMPIXELS_HEAD 162
@@ -67,6 +71,7 @@ long mouthLastTime = micros();
 #define LED_PIN_HEAD 40
 int earPos1 = 0;
 int earPos2 = 0;
+const int alwaysOffLEDs[] = {9, 12, 13, 23, 24, 25, 36, 40, 41};  //Body hidden LED's
 // max Hue
 #define MAXHUE 256*6
 short mouthBlueIs[80];
@@ -75,6 +80,32 @@ short mouthBlueShould[80];
 short mouthRedShould[80];
 Adafruit_NeoPixel pixels_body(NUMPIXELS_BODY, LED_PIN_BODY, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel pixels_head(NUMPIXELS_HEAD, LED_PIN_HEAD, NEO_GRB + NEO_KHZ800);
+
+struct LEDState{
+  unsigned long nextChangeTime;
+  bool isOn;
+  int red;
+  int green;
+  int blue;
+};
+
+// Array LED Body state
+struct LEDState bodyLedStates[NUMPIXELS_BODY];
+
+// Vordefinierte Farben (RGB) für Body
+const uint8_t predefinedColors[10][3] = {
+    {190, 0, 0},   // Rot
+    {0, 190, 0},   // Grün
+    {0, 0, 190},   // Blau
+    {190, 190, 0}, // Gelb
+    {0, 190, 190}, // Cyan
+    {190, 0, 190}, // Magenta
+    {150, 150, 150}, // weiß
+    {190, 100, 0}, // Orange
+    {128, 0, 128}, // Lila
+    {0, 128, 128}  // Türkis
+};
+
 
 #define RXD2 48
 #define TXD2 47
@@ -118,10 +149,6 @@ int input[10];
 int speed = 5;
 
 
-//Set up time variables for Stepper motor
-unsigned long currentMotorTime =  micros();
-
-
  
 // Read the number of a given channel and convert to the range provided.
 // If the channel is off, return the default value
@@ -139,9 +166,39 @@ bool readSwitch(byte channelInput, bool defaultValue) {
 }
 
 
+
+Servo servoMotor[14];
+
+
+
+
+
+
 void setup() {
+
+  servoMotor[0].attach(9, 500, 2400);
+  servoMotor[1].attach(10, 500, 2400);
+  servoMotor[2].attach(11, 500, 2400);
+  servoMotor[3].attach(12, 500, 2400);
+  servoMotor[4].attach(13, 500, 2400);
+  servoMotor[5].attach(14, 500, 2400);
+  servoMotor[6].attach(17, 500, 2400);
+  servoMotor[7].attach(18, 500, 2400);
+
+  servoMotor[8].attach(19, 500, 2400);
+  servoMotor[9].attach(20, 500, 2400);
+  servoMotor[10].attach(21, 500, 2400);
+  servoMotor[11].attach(48, 500, 2400);
+  servoMotor[12].attach(47, 500, 2400);
+  servoMotor[13].attach(33, 500, 2400);
+
+
   // Start serial monitor
   Serial.begin(115200);
+  Serial.println("ESP32S3 starting");
+
+  xTaskCreatePinnedToCore(CoreTask0, "CPU_0", 10000, NULL, 1, &Core0TaskHnd, 0);
+  //xTaskCreatePinnedToCore(CoreTask1, "CPU_1", 10000, NULL, 1, &Core1TaskHnd, 1);
 
   Serial2.begin(11520, SERIAL_8N1, RXD2, TXD2);
  
@@ -156,6 +213,7 @@ void setup() {
 
   set_params();
   setupMotor();
+  Serial.println("Motors ready");
 
   //Setup LEDs
   delay(1000);
@@ -174,12 +232,12 @@ void setup() {
   for(int i=0; i<NUMPIXELS_BODY; i++) { // For each pixel...
     pixels_body.setPixelColor(i, 255, 255, 255);
     pixels_body.show(); 
-    delay(20);
+    delay(10);
   }
   for(int i=0; i<NUMPIXELS_HEAD; i++) { // For each pixel...
     pixels_head.setPixelColor(i, 255, 255, 255);
     pixels_head.show(); 
-    delay(20);
+    delay(10);
   }
 
   delay(1000);
@@ -187,112 +245,112 @@ void setup() {
   for(int i=0; i<NUMPIXELS_BODY; i++) { // For each pixel...
     pixels_body.setPixelColor(i, 0, 0, 0);
     pixels_body.show();
-    delay(20);
+    delay(10);
   }
   for(int i=0; i<NUMPIXELS_HEAD; i++) { // For each pixel...
     pixels_head.setPixelColor(i, 0, 0, 0);
     pixels_head.show();
-    delay(20);
+    delay(10);
+  }
+  Serial.println("LED ready");
+
+  for (int i = 0; i < NUMPIXELS_BODY; i++) {
+    bool alwaysOff = false;
+    for (int j = 0; j < 9; j++) {
+      if (i == alwaysOffLEDs[j]) {
+        alwaysOff = true;
+        break;
+      }
+    }
+    if (!alwaysOff) {
+      bodyLedStates[i].nextChangeTime = millis() + (rand() % 4500 + 500);
+      bodyLedStates[i].isOn = false;
+      bodyLedStates[i].red = rand() % 256;
+      bodyLedStates[i].green = rand() % 256;
+      bodyLedStates[i].blue = rand() % 256;
+    } else {
+      bodyLedStates[i].nextChangeTime = 0;
+      bodyLedStates[i].isOn = false;
+      bodyLedStates[i].red = 0;
+      bodyLedStates[i].green = 0;
+      bodyLedStates[i].blue = 0;  
+    }
   }
 
+
+
+  booting = false;
+
+  Serial.println("ESP32S3 Booting finish");
 }
 
 //---LOOP----------------------------------------------------------------------------------------------------
-void loop() {
 
-  
-  // Note IBusBM library labels channels starting with "0"
-  for (byte i = 0; i < 10; i++) {
-    input[i] = readChannel(i, -100, 100, 0);
+
+void CoreTask0(void * parameter) {
+
+  while(booting){
+    yield();
+    delay(100);
   }
 
-  #ifdef DEBUG_RC_INPUT
-    for(int i = 0; i < 10; i++){
-      Serial.print("   Ch ");
-      Serial.print(i);
-      Serial.print(": ");
-      Serial.print(input[i]);
-    }
-  #endif
+  Serial.println("CoreTask0 start");
 
+  for (;;) {
+    // LED control code
+    uint32_t currentMotorTime = millis();
 
-  currentMotorTime = micros(); 
-  //Serial.println(currentMotorTime - earLastTime);
+    //LED Body
+  if(input[6] < -1){  //body    input[6] == 100
+    //Serial.print("LEDtime: ");
+    //Serial.println(currentMotorTime);
 
-//LED Body
-  if(currentMotorTime - bodyLastTime >= bodyTime){
-    if(input[6] == 0){  //body    input[6] == 100
-    Serial.print("LEDtime: ");
-    Serial.println(currentMotorTime);
-
-    //links Rund
-    pixels_body.setPixelColor(0, 128, 128, 128);
-    pixels_body.setPixelColor(1, 255, 0, 0);
-    pixels_body.setPixelColor(2, 0, 255, 0);
-    pixels_body.setPixelColor(3, 0, 0, 255);
-    pixels_body.setPixelColor(4, 255, 255, 255);
-    pixels_body.setPixelColor(5, 0, 0, 0);
-    pixels_body.setPixelColor(6, 0, 0, 0);
-    pixels_body.setPixelColor(7, 0, 0, 128);
-
-    //links Ecking
-    pixels_body.setPixelColor(8, 0, 0, 128);
-    //pixels_body.setPixelColor(9, 0, 0, 0);
-    pixels_body.setPixelColor(10, 0, 128, 0);
-    pixels_body.setPixelColor(11, 128, 0, 0);
-    //pixels_body.setPixelColor(12, 0, 0, 0);
-    //pixels_body.setPixelColor(13, 0, 0, 0);
-
-    //mitte Rund
-    pixels_body.setPixelColor(14, 128, 128, 128);
-    pixels_body.setPixelColor(15, 0, 0, 0);
-    pixels_body.setPixelColor(16, 0, 0, 0);
-    pixels_body.setPixelColor(17, 0, 0, 0);
-    pixels_body.setPixelColor(18, 0, 0, 0);
-    pixels_body.setPixelColor(19, 0, 0, 0);
-    pixels_body.setPixelColor(20, 0, 0, 0);
-    pixels_body.setPixelColor(21, 0, 0, 0);
-
-    //mitte Ecking
-    pixels_body.setPixelColor(22, 0, 0, 128);
-    //pixels_body.setPixelColor(23, 0, 0, 0);
-    //pixels_body.setPixelColor(24, 0, 0, 0);
-    //pixels_body.setPixelColor(25, 0, 0, 0);
-    pixels_body.setPixelColor(26, 0, 128, 0);
-    pixels_body.setPixelColor(27, 128, 0, 0);
-
-    //rechts Rund
-    pixels_body.setPixelColor(28, 128, 128, 128);
-    pixels_body.setPixelColor(29, 0, 0, 0);
-    pixels_body.setPixelColor(30, 0, 0, 0);
-    pixels_body.setPixelColor(31, 0, 0, 0);
-    pixels_body.setPixelColor(32, 0, 0, 0);
-    pixels_body.setPixelColor(33, 0, 0, 0);
-    pixels_body.setPixelColor(34, 0, 0, 0);
-    pixels_body.setPixelColor(35, 0, 0, 0);
-
-    //rechts Ecking
-    //pixels_body.setPixelColor(36, 0, 0, 0);
-    pixels_body.setPixelColor(37, 0, 0, 128);
-    pixels_body.setPixelColor(38, 0, 128, 0);
-    pixels_body.setPixelColor(39, 128, 0, 0);
-    //pixels_body.setPixelColor(40, 0, 0, 0);
-    //pixels_body.setPixelColor(41, 0, 0, 0);
-
-    pixels_body.show();
-
-    }else{
-      for(int i = 0; i < 42; i++) { // For each pixel...
-        pixels_body.setPixelColor(i + bodyOffset, 0, 0, 0);
+    for (int i = 0; i < NUMPIXELS_BODY; i++) {
+      bool alwaysOff = false;
+      for (int j = 0; j < 9; j++) {
+        if (i == alwaysOffLEDs[j]) {
+          alwaysOff = true;
+          break;
+        }
       }
-      pixels_body.show();
+      if (alwaysOff) continue;
+
+      // Überprüfen, ob es Zeit ist, den Zustand der LED zu ändern
+      if (currentMotorTime >= bodyLedStates[i].nextChangeTime) {
+        if (bodyLedStates[i].isOn) {
+          // LED ausschalten
+          pixels_body.setPixelColor(i, 0, 0, 0);
+          bodyLedStates[i].isOn = false;
+          // Nächste Statusänderung in zufälliger Zeit
+          bodyLedStates[i].nextChangeTime = currentMotorTime + (rand() % 5000 + 500);
+        } else {
+          // Zufällige Farbe aus der Liste auswählen
+          int colorIndex = rand() % 10;
+          bodyLedStates[i].red = predefinedColors[colorIndex][0];
+          bodyLedStates[i].green = predefinedColors[colorIndex][1];
+          bodyLedStates[i].blue = predefinedColors[colorIndex][2];
+          // LED einschalten
+          pixels_body.setPixelColor(i, bodyLedStates[i].red, bodyLedStates[i].green, bodyLedStates[i].blue);
+          bodyLedStates[i].isOn = true;
+          // Nächste Statusänderung in zufälliger Zeit
+          bodyLedStates[i].nextChangeTime = currentMotorTime + (rand() % 4000 + 500);
+        }
+        // Aktualisieren der LEDs
+        pixels_body.show();
+      }
     }
-    bodyLastTime = currentMotorTime;
+  }else{
+    for(int i = 0; i < 42; i++) { // For each pixel...
+      pixels_body.setPixelColor(i + bodyOffset, 0, 0, 0);
+    }
+    pixels_body.show();
   }
+
+
 
 //LED Ear
-  if(currentMotorTime - earLastTime >= earTime){
-    if(input[6] == 0){  //ear
+  if(currentMotorTime - earLastTime >= earTime * 6){
+    if(input[6] < -1){  //ear
       for (int i = 0; i < 40; i++){
         pixels_head.setPixelColor(((i + earPos1) % 40) + ear1offset, getPixelColorHsv(i + ear1offset, (i * (MAXHUE / 40)) + ear1offset, 255, 10));
       }
@@ -312,7 +370,7 @@ void loop() {
   }
 
 //LED Eye
-  if(input[6] == 0){  //eye
+  if(input[6] < -1){  //eye
     pixels_head.setPixelColor(eye1offset, 255,215,0);
     pixels_head.setPixelColor(eye2offset, 255,215,0);
   }else{
@@ -322,7 +380,7 @@ void loop() {
 
 //LED Mouth
   if(currentMotorTime - mouthLastTime >= mouthTime){
-    if(input[6] == 0){  //mouth
+    if(input[6] < -1){  //mouth
       for(int i = 0; i < 80; i += 2) { // For each pixel...
         if(mouthBlueIs[i] == mouthBlueShould[i]){
           int tmp = random(0, 255);
@@ -363,6 +421,69 @@ void loop() {
     mouthLastTime = currentMotorTime;
   }
   pixels_head.show();
+
+    yield();
+    delay(50); // Adjust the delay as necessary
+  }
+
+}
+
+void CoreTask1(void * parameter) {
+
+  while(booting){
+    yield();
+    delay(100);
+  }
+
+  Serial.println("CoreTask1 start");
+
+  servoCalc(12,-10);
+
+  for (;;) {
+    
+ 
+    for(int i = 80; i < 100; i++){
+      servoMotor[1].write(i);
+      delay(25);
+    }
+    servoMotor[0].write(110);
+    delay(2000);
+
+    for(int i = 100; i > 80; i--){
+      servoMotor[1].write(i);
+      
+      delay(25);
+    }
+    servoMotor[0].write(100);
+    delay(2000);
+
+    yield();
+    delay(10); // Adjust the delay as necessary
+  }
+}
+
+
+void loop() {
+
+// Note IBusBM library labels channels starting with "0"
+    for (byte i = 0; i < 10; i++) {
+      input[i] = readChannel(i, -100, 100, 0);
+    }
+
+    #ifdef DEBUG_RC_INPUT
+      for(int i = 0; i < 10; i++){
+        Serial.print("   Ch ");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.print(input[i]);
+      }
+      Serial.println("");
+    #endif
+
+
+  //currentMotorTime = millis(); 
+
+
 
 
 /*
@@ -435,20 +556,20 @@ void loop() {
         servoCalc(9, input[3]);
         servoCalc(10, input[2]);
       }else if(input[8] == 0){
-        servoCalc(11,input[2]);
-        servoCalc(12,input[3]);
+        //servoCalc(11,input[2]);
+        //servoCalc(12,input[3]);
+        servoCalcESP(12, input[3], 1);
       }else{
-        servoCalc(13,input[2]);
+        //servoCalc(13,input[2]);
+        servoCalcESP(13, input[2], 0);
       }
     }
   }
 
   
-  #if defined(DEBUG_DRIVE) || defined(DEBUG_STEPPER) || defined(DEBUG_RC_INPUT) || defined(DEBUG_SERVO)
-    Serial.println("");
-  #endif
 
-  delay(10);
+
+  delay(100);
 }
 
 
@@ -465,6 +586,7 @@ void servoCalcEndless(int number, int value){
   Serial.print(value);
   Serial.print("  PWM: ");
   Serial.print(pwm);
+  Serial.println("");
   #endif
 
 }
@@ -508,6 +630,22 @@ void servoCalc(int number, int value){
   Serial.print(temp);
   Serial.print("  PWM: ");
   Serial.print(pwm);
+  Serial.println("");
+  #endif
+
+}
+
+void servoCalcESP(int number, int value, int servoNumber){
+
+  
+  servoMotor[servoNumber].write(map(value, -100, 100, servo[number].min, servo[number].max));
+
+  #ifdef DEBUG_SERVO
+  Serial.print("  Move: ");
+  Serial.print(temp);
+  Serial.print("  PWM: ");
+  Serial.print(pwm);
+  Serial.println("");
   #endif
 
 }
@@ -646,6 +784,15 @@ void drive(){
     Serial.print(motor[3].value);
     Serial.print("  Speed4: ");
     Serial.print(motor[4].value);
+    Serial.println("");
   #endif
 }
+
+
+
+
+
+
+
+
 
